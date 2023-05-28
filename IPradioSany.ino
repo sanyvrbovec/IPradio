@@ -1,6 +1,6 @@
 /*
   Autor: Nenad Dobrijević
-  Opis: ESP8266 IP radio s I2C display-em, OTA podrškom i mogućnošću dodavanja novih linkova za radio
+  Opis: ESP8266 IP radio s I2C display-em, OTA podrškom i reprodukcijom IP audio strima
 */
 
 #include <ESP8266WiFi.h>
@@ -11,7 +11,10 @@
 #include <Adafruit_SSD1306.h>
 #include <ESP8266mDNS.h>
 #include <WiFiUdp.h>
-#include <ArduinoOTA.h>
+#include <ArduinoOTA>
+#include <ESP8266Audio.h>
+#include <AudioFileSourceICYStream.h>
+#include <AudioOutputI2S.h>
 
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
@@ -32,6 +35,11 @@ String radioLinks[] = {
 const int numRadioLinks = sizeof(radioLinks) / sizeof(radioLinks[0]);
 
 int currentRadioIndex = 0;
+
+// Audio output setup
+AudioFileSourceICYStream *file;
+AudioOutputI2S *out;
+AudioConnection *patchCord;
 
 void setup() {
   // Start serial communication
@@ -85,6 +93,11 @@ void setup() {
   });
   ArduinoOTA.begin();
 
+  // Setup audio output
+  Audio.begin();
+  out = new AudioOutputI2S();
+  patchCord = new AudioConnection(*file, 0, *out, 0);
+
   // Start radio streaming
   playRadioStream();
 }
@@ -113,7 +126,25 @@ void playRadioStream() {
         display.setCursor(0, 0);
         display.println("Playing radio stream");
         display.display();
-        // Add code to play the radio stream here
+
+        WiFiClient *stream = http.getStreamPtr();
+        file = new AudioFileSourceICYStream(stream, new AudioOutputI2S());
+        file->RegisterMetadataCB(MetadataReceived);
+
+        Audio.start(file);
+        while (file->isRunning()) {
+          // Add any additional code or controls here while streaming is in progress
+          delay(100);
+        }
+
+        // Stream ended
+        display.clearDisplay();
+        display.setTextSize(1);
+        display.setCursor(0, 0);
+        display.println("Stream ended");
+        display.display();
+        delay(2000);
+
       } else {
         display.clearDisplay();
         display.setTextSize(1);
@@ -139,3 +170,9 @@ void changeRadioStream() {
   currentRadioIndex = (currentRadioIndex + 1) % numRadioLinks;
   playRadioStream();
 }
+
+void MetadataReceived(void *client, const char *name, const char *value) {
+  // Process metadata if needed
+  // You can extract song title, artist, etc. from the metadata
+}
+
