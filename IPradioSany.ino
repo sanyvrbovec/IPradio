@@ -15,6 +15,7 @@
 #include <ESP8266Audio.h>
 #include <AudioFileSourceICYStream.h>
 #include <AudioOutputI2S.h>
+#include <PCM5102A.h>  // Dodana biblioteka za PCM5102A DAC
 
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
@@ -40,6 +41,12 @@ int currentRadioIndex = 0;
 AudioFileSourceICYStream *file;
 AudioOutputI2S *out;
 AudioConnection *patchCord;
+PCM5102A dac(DAC_DATA, DAC_BCK, DAC_WS);  // Dodan objekt za PCM5102A DAC
+
+// Pinovi za PCM5102A DAC
+#define DAC_DATA 2  // Primjer: Koristite GPIO pin 2 za DAC DATA
+#define DAC_BCK  3  // Primjer: Koristite GPIO pin 3 za DAC BCK
+#define DAC_WS   4  // Primjer: Koristite GPIO pin 4 za DAC WS
 
 void setup() {
   // Start serial communication
@@ -105,6 +112,7 @@ void setup() {
 void loop() {
   ArduinoOTA.handle();
   // Add any additional functionality or logic here
+  dac.update();  // Osvježavanje izlaza PCM5102A DAC-a
 }
 
 void playRadioStream() {
